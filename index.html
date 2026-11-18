@@ -40,7 +40,13 @@ svg{display:block}
 /* ---------- 左侧栏 ---------- */
 .rail{width:calc(6.6rem + env(safe-area-inset-left));flex:none;background:var(--rail);border-right:1px solid var(--line);
   display:flex;flex-direction:column;align-items:center;padding:1.3rem 0 1.3rem env(safe-area-inset-left);gap:1rem}
-#stage .view{padding-right:calc(1.4rem + env(safe-area-inset-right))}
+/* 投屏到显示器时刘海并不会显示，所以右侧不再为刘海留空，画面尽量铺满 */
+@media (orientation:landscape) and (max-height:500px){
+  #stage .view{padding:.7rem}
+  .map-app{inset:.7rem}
+  .dash,.dash-sub,.music,.wx-app,.speed-app,.stats{gap:.7rem}
+  .rail{padding-top:.9rem;padding-bottom:.9rem}
+}
 html,body{overscroll-behavior:none;touch-action:manipulation}
 .rail-time{font-size:1.55rem;font-weight:600;letter-spacing:-.02em}
 .rail-status{display:flex;flex-direction:column;align-items:center;gap:.35rem;font-size:.78rem;color:var(--muted)}
