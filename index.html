@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>DriveDeck 车载界面</title>
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DriveDeck">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#000; --panel:#1c1c1e; --panel-2:#2c2c2e; --line:rgba(255,255,255,.08);
+  --text:#f5f5f7; --muted:rgba(245,245,247,.55); --accent:#0a84ff;
+  --rail:#0c0c0e; --shadow:0 .4rem 1.6rem rgba(0,0,0,.35); --cloud:#e5e5ea;
+}
+html[data-theme=light]{
+  --bg:#e6e6eb; --panel:#fff; --panel-2:#ececf1; --line:rgba(0,0,0,.08);
+  --text:#111114; --muted:rgba(17,17,20,.55); --rail:#f7f7fa;
+  --shadow:0 .3rem 1.2rem rgba(0,0,0,.08); --cloud:#a1a1aa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:min(1vw,1.7778vh);height:100%}
+@media (orientation:portrait){html{font-size:min(1.7778vw,1vh)}}
+body{height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif;
+  user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+body.idle,body.idle *{cursor:none!important}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+.num{font-variant-numeric:tabular-nums}
+
+#app{display:flex;height:100vh;width:100vw}
+
+/* ---------- 左侧栏 ---------- */
+.rail{width:calc(6.6rem + env(safe-area-inset-left));flex:none;background:var(--rail);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;padding:1.3rem 0 1.3rem env(safe-area-inset-left);gap:1rem}
+#stage .view{padding-right:calc(1.4rem + env(safe-area-inset-right))}
+html,body{overscroll-behavior:none;touch-action:manipulation}
+.rail-time{font-size:1.55rem;font-weight:600;letter-spacing:-.02em}
+.rail-status{display:flex;flex-direction:column;align-items:center;gap:.35rem;font-size:.78rem;color:var(--muted)}
+.rail-status span{display:flex;align-items:center;gap:.25rem}
+.rail-status svg{width:1rem;height:1rem}
+.dock{flex:1;display:flex;flex-direction:column;justify-content:center;gap:1.2rem}
+.dock button{position:relative}
+.dock button.on::after{content:"";position:absolute;left:-.85rem;top:50%;width:.3rem;height:1.6rem;margin-top:-.8rem;border-radius:1rem;background:var(--text)}
+.ico{width:4.5rem;height:4.5rem;border-radius:1.15rem;display:grid;place-items:center;color:#fff;box-shadow:var(--shadow);transition:transform .15s}
+.ico svg{width:52%;height:52%}
+button:active .ico{transform:scale(.9)}
+.home-btn{width:4.5rem;height:4.5rem;border-radius:1.15rem;background:var(--panel-2);display:grid;place-items:center;transition:transform .15s}
+.home-btn:active{transform:scale(.9)}
+.home-btn svg{width:42%;height:42%}
+
+.g-map{background:linear-gradient(160deg,#34c759,#0a9e88)}
+.g-music{background:linear-gradient(160deg,#ff5f6d,#e0245e)}
+.g-speed{background:linear-gradient(160deg,#ff9f0a,#ff6a00)}
+.g-wx{background:linear-gradient(160deg,#5ac8fa,#0a63d6)}
+.g-clock{background:linear-gradient(160deg,#3a3a3c,#111)}
+.g-set{background:linear-gradient(160deg,#9b9ba1,#5d5d63)}
+
+/* ---------- 主区域 ---------- */
+#stage{flex:1;position:relative;min-width:0;min-height:0}
+.view{position:absolute;inset:0;padding:1.4rem;display:none}
+.view.active{display:block;animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+.card{background:var(--panel);border-radius:1.7rem;overflow:hidden;position:relative;box-shadow:var(--shadow)}
+.label{font-size:.95rem;color:var(--muted);font-weight:500}
+.pill{position:absolute;left:1rem;top:1rem;z-index:2;background:rgba(0,0,0,.6);color:#fff;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:.45rem .9rem;border-radius:2rem;font-size:.95rem;font-weight:600;
+  display:flex;align-items:center;gap:.45rem}
+.pill svg{width:1rem;height:1rem}
+
+/* 首页仪表盘 */
+.dash{height:100%;display:grid;grid-template-columns:1.35fr 1fr;grid-template-rows:1fr 1fr;gap:1.2rem}
+.card-map{grid-row:1/3;cursor:pointer}
+.map-frame{position:absolute;inset:0;width:100%;height:100%;border:0}
+html[data-theme=dark] .map-frame{filter:invert(.92) hue-rotate(180deg) saturate(.75) brightness(.95)}
+.card-map .map-frame{pointer-events:none}
+.map-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:1.1rem;line-height:1.7;
+  background:radial-gradient(circle at 30% 30%,rgba(52,199,89,.12),transparent 60%),var(--panel)}
+.map-empty b{display:block;color:var(--text);font-size:1.4rem;margin-bottom:.3rem}
+.btn{background:var(--panel-2);padding:.75rem 1.4rem;border-radius:1rem;font-weight:600;font-size:1rem;display:inline-flex;align-items:center;gap:.5rem}
+.btn.primary{background:var(--accent);color:#fff}
+.btn:active{opacity:.75}
+
+.dash-sub{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;min-height:0}
+
+/* 正在播放 */
+.np-card{display:flex;flex-direction:column;padding:1.5rem;gap:1rem}
+.np-top{display:flex;gap:1.3rem;align-items:center;flex:1;min-height:0;cursor:pointer}
+.np-art{width:8.5rem;height:8.5rem;flex:none;border-radius:1.1rem;display:grid;place-items:center;color:rgba(255,255,255,.9);
+  background:linear-gradient(140deg,#48484a,#1c1c1e);box-shadow:var(--shadow)}
+.np-art svg{width:40%;height:40%}
+.np-meta{min-width:0}
+.np-title{font-size:1.65rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-sub{font-size:1.05rem;color:var(--muted);margin-top:.35rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-bar{height:.4rem;border-radius:1rem;background:var(--panel-2);overflow:hidden;cursor:pointer}
+.np-bar i{display:block;height:100%;width:0;background:var(--text);border-radius:1rem}
+.np-ctrl{display:flex;justify-content:space-around;align-items:center}
+.np-ctrl button{width:4.4rem;height:4.4rem;display:grid;place-items:center;border-radius:50%}
+.np-ctrl button:active{background:var(--panel-2)}
+.np-ctrl svg{width:2.2rem;height:2.2rem}
+.np-ctrl .np-play svg{width:2.8rem;height:2.8rem}
+
+/* 天气卡 & 日期卡 */
+.wx-card,.date-card{padding:1.4rem;display:flex;flex-direction:column;cursor:pointer}
+.wx-card .wx-ico{width:4.2rem;height:4.2rem;margin:.4rem 0 .2rem -.3rem}
+.wx-temp{font-size:3.4rem;font-weight:300;line-height:1;letter-spacing:-.03em}
+.wx-desc{font-size:1.05rem;margin-top:.4rem;font-weight:600}
+.wx-hl{font-size:.95rem;color:var(--muted);margin-top:auto}
+.date-wd{font-size:1.1rem;color:#ff453a;font-weight:600}
+.date-day{font-size:4.6rem;font-weight:300;line-height:1.05;letter-spacing:-.04em}
+.date-ym{font-size:1.05rem;color:var(--muted)}
+.date-trip{margin-top:auto;font-size:.95rem;color:var(--muted)}
+
+/* 应用网格 */
+.apps{height:100%;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,auto);align-content:center;justify-items:center;gap:3rem 1rem}
+.app-tile{display:flex;flex-direction:column;align-items:center;gap:.8rem;font-size:1.1rem;font-weight:500}
+.app-tile .ico{width:7.6rem;height:7.6rem;border-radius:1.9rem}
+
+/* 应用通用 */
+.app{height:100%;display:flex;flex-direction:column;gap:1.2rem}
+.app-head{display:flex;align-items:center;justify-content:space-between;min-height:3rem}
+.app-head h1{font-size:2rem;font-weight:700;letter-spacing:-.01em}
+.app-body{flex:1;min-height:0}
+
+/* 音乐 */
+.music{display:grid;grid-template-columns:1.1fr 1fr;gap:1.2rem;height:100%}
+.music .player{padding:2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem}
+.music .np-art{width:min(19rem,38vh);height:min(19rem,38vh);border-radius:1.6rem}
+.music .np-title{font-size:2rem;text-align:center;max-width:100%}
+.music .np-sub{text-align:center}
+.music .np-bar{width:100%}
+.times{width:100%;display:flex;justify-content:space-between;font-size:.9rem;color:var(--muted);margin-top:-.6rem}
+.music .np-ctrl{width:100%}
+.music .np-ctrl button{width:5.4rem;height:5.4rem}
+.music .np-ctrl svg{width:2.6rem;height:2.6rem}
+.music .np-ctrl .np-play svg{width:3.4rem;height:3.4rem}
+.plist{display:flex;flex-direction:column}
+.plist-head{display:flex;gap:.7rem;padding:1.2rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.plist ul{list-style:none;overflow:auto;flex:1}
+.plist li{padding:1rem 1.4rem;font-size:1.1rem;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:1rem;align-items:center}
+.plist li span{color:var(--muted);width:1.8rem;flex:none;font-size:.95rem}
+.plist li div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plist li.cur{color:var(--accent);font-weight:600}
+.plist .empty{padding:2rem 1.4rem;color:var(--muted);font-size:1.05rem;line-height:1.7}
+input[type=file]{display:none}
+
+/* 地图应用 */
+.map-app{position:absolute;inset:1.4rem}
+.map-tools{position:absolute;right:1rem;bottom:1rem;z-index:2;display:flex;flex-direction:column;gap:.6rem}
+.map-tools button{width:3.8rem;height:3.8rem;border-radius:1rem;background:rgba(28,28,30,.85);color:#fff;display:grid;place-items:center;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:1.8rem;font-weight:300}
+.map-tools svg{width:1.5rem;height:1.5rem}
+
+/* 天气应用 */
+.wx-app{display:grid;grid-template-columns:1fr 1.2fr;gap:1.2rem;height:100%}
+.wx-now{padding:2.2rem;display:flex;flex-direction:column;justify-content:center}
+.wx-now .wx-ico{width:8rem;height:8rem}
+.wx-now .wx-temp{font-size:7rem}
+.wx-now .wx-desc{font-size:1.6rem}
+.wx-now .wx-extra{display:flex;gap:2rem;margin-top:1.6rem;color:var(--muted);font-size:1.05rem}
+.wx-now .wx-extra b{display:block;color:var(--text);font-size:1.4rem;font-weight:600;margin-top:.2rem}
+.wx-days{padding:.6rem 1.6rem;display:flex;flex-direction:column;justify-content:space-around}
+.wx-day{display:grid;grid-template-columns:4.5rem 2.6rem 3.4rem 1fr 3.4rem;align-items:center;gap:.8rem;font-size:1.15rem}
+.wx-day svg{width:2.4rem;height:2.4rem}
+.wx-day .p{color:#64d2ff;font-size:.9rem}
+.wx-day .lo{color:var(--muted);text-align:right}
+.range{height:.4rem;border-radius:1rem;background:var(--panel-2);position:relative}
+.range i{position:absolute;top:0;bottom:0;border-radius:1rem;background:linear-gradient(90deg,#64d2ff,#ffd60a,#ff9f0a)}
+.note{color:var(--muted);font-size:1.05rem;line-height:1.7}
+
+/* 仪表 */
+.speed-app{display:grid;grid-template-columns:1.3fr 1fr;gap:1.2rem;height:100%}
+.gauge{display:grid;place-items:center;position:relative}
+.gauge svg{width:min(32rem,70vh);height:min(32rem,70vh)}
+.gauge-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge-val b{font-size:8rem;font-weight:200;line-height:1;letter-spacing:-.04em}
+.gauge-val span{font-size:1.2rem;color:var(--muted);margin-top:.4rem}
+.gauge-note{position:absolute;bottom:1.4rem;left:0;right:0;text-align:center;color:var(--muted);font-size:1rem;padding:0 1.5rem}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;grid-auto-rows:1fr}
+.stat{padding:1.4rem;display:flex;flex-direction:column;justify-content:space-between}
+.stat b{font-size:2.8rem;font-weight:300;letter-spacing:-.02em}
+.stat b small{font-size:1.1rem;color:var(--muted);margin-left:.3rem}
+
+/* 时钟 */
+.clock-app{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem}
+.big-time{font-size:13rem;font-weight:200;letter-spacing:-.05em;line-height:1}
+.big-date{font-size:1.8rem;color:var(--muted)}
+.sw{margin-top:2rem;display:flex;align-items:center;gap:1.4rem}
+.sw-val{font-size:3rem;font-weight:300;min-width:13rem;text-align:center}
+
+/* 设置 */
+.set-list{max-width:52rem;margin:0 auto;overflow:auto;height:100%}
+.set-group{margin-bottom:1.4rem}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;padding:1.15rem 1.5rem;border-bottom:1px solid var(--line);font-size:1.2rem;min-height:4.6rem}
+.set-row:last-child{border-bottom:0}
+.set-row small{display:block;color:var(--muted);font-size:.9rem;margin-top:.2rem}
+.tog{width:4.2rem;height:2.5rem;border-radius:2rem;background:var(--panel-2);position:relative;flex:none;transition:background .2s}
+.tog::after{content:"";position:absolute;top:.2rem;left:.2rem;width:2.1rem;height:2.1rem;border-radius:50%;background:#fff;box-shadow:0 .1rem .3rem rgba(0,0,0,.3);transition:transform .2s}
+.tog.on{background:#34c759}
+.tog.on::after{transform:translateX(1.7rem)}
+input[type=range]{width:20rem;accent-color:var(--accent);height:2rem}
+.swatches{display:flex;gap:.8rem}
+.swatches button{width:2.4rem;height:2.4rem;border-radius:50%;border:.2rem solid transparent}
+.swatches button.on{border-color:var(--text)}
+
+#dim{position:fixed;inset:0;background:#000;pointer-events:none;opacity:0;z-index:50}
+
+/* ---------- 竖屏布局 ---------- */
+@media (orientation:portrait){
+  #app{flex-direction:column-reverse}
+  .rail{width:auto;height:calc(7.4rem + env(safe-area-inset-bottom));flex-direction:row;padding:0 1.6rem env(safe-area-inset-bottom);border-right:0;border-top:1px solid var(--line)}
+  #stage .view{padding-top:calc(1.4rem + env(safe-area-inset-top))}
+  .rail-status{flex-direction:row;gap:.8rem}
+  .dock{flex-direction:row}
+  .dock button.on::after{left:50%;top:auto;bottom:-.85rem;width:1.6rem;height:.3rem;margin:0 0 0 -.8rem}
+  .dash{grid-template-columns:1fr;grid-template-rows:1.25fr .85fr .85fr}
+  .card-map{grid-row:auto}
+  .apps{grid-template-columns:repeat(3,1fr)}
+  .music,.wx-app,.speed-app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .music .player{padding:1.6rem}
+  .music .np-art{width:min(15rem,25vh);height:min(15rem,25vh)}
+  .gauge svg{width:min(26rem,40vh);height:min(26rem,40vh)}
+  .big-time{font-size:9rem}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside class="rail">
+    <div class="rail-time num" id="rail-time">--:--</div>
+    <div class="rail-status">
+      <span id="st-net"></span>
+      <span id="st-bat"></span>
+    </div>
+    <nav class="dock">
+      <button data-open="map" aria-label="地图"><div class="ico g-map" data-icon="nav"></div></button>
+      <button data-open="music" aria-label="音乐"><div class="ico g-music" data-icon="note"></div></button>
+      <button data-open="speed" aria-label="仪表"><div class="ico g-speed" data-icon="gauge"></div></button>
+    </nav>
+    <button class="home-btn" id="home-btn" aria-label="主屏幕"></button>
+  </aside>
+
+  <main id="stage">
+    <!-- 首页 -->
+    <section class="view active" id="v-home">
+      <div class="dash">
+        <div class="card card-map" data-open="map">
+          <div class="pill"><span data-icon="nav"></span><span>地图</span></div>
+          <iframe class="map-frame" id="map-mini" title="地图" loading="lazy" hidden></iframe>
+          <div class="map-empty" id="map-mini-empty"></div>
+        </div>
+        <div class="card np-card">
+          <div class="np-top" data-open="music">
+            <div class="np-art"></div>
+            <div class="np-meta"><div class="label">正在播放</div><div class="np-title">未在播放</div><div class="np-sub">点按选择音乐文件</div></div>
+          </div>
+          <div class="np-bar"><i></i></div>
+          <div class="np-ctrl">
+            <button data-act="prev" aria-label="上一首"></button>
+            <button data-act="toggle" class="np-play" aria-label="播放"></button>
+            <button data-act="next" aria-label="下一首"></button>
+          </div>
+        </div>
+        <div class="dash-sub">
+          <div class="card wx-card" data-open="weather">
+            <div class="label">天气</div>
+            <div class="wx-ico" id="wx-mini-ico"></div>
+            <div class="wx-temp num" id="wx-mini-temp">--°</div>
+            <div class="wx-desc" id="wx-mini-desc">等待定位</div>
+            <div class="wx-hl num" id="wx-mini-hl"></div>
+          </div>
+          <div class="card date-card" data-open="clock">
+            <div class="date-wd" id="d-wd"></div>
+            <div class="date-day num" id="d-day"></div>
+            <div class="date-ym" id="d-ym"></div>
+            <div class="date-trip num" id="d-trip"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 应用网格 -->
+    <section class="view" id="v-apps">
+      <div class="apps">
+        <button class="app-tile" data-open="map"><div class="ico g-map" data-icon="nav"></div>地图</button>
+        <button class="app-tile" data-open="music"><div class="ico g-music" data-icon="note"></div>音乐</button>
+        <button class="app-tile" data-open="speed"><div class="ico g-speed" data-icon="gauge"></div>仪表</button>
+        <button class="app-tile" data-open="weather"><div class="ico g-wx" data-icon="cloud"></div>天气</button>
+        <button class="app-tile" data-open="clock"><div class="ico g-clock" data-icon="clock"></div>时钟</button>
+        <button class="app-tile" data-open="settings"><div class="ico g-set" data-icon="gear"></div>设置</button>
+      </div>
+    </section>
+
+    <!-- 地图 -->
+    <section class="view" id="v-map">
+      <div class="card map-app">
+        <iframe class="map-frame" id="map-full" title="地图" hidden></iframe>
+        <div class="map-empty" id="map-full-empty"></div>
+        <div class="map-tools">
+          <button id="map-zin" aria-label="放大">+</button>
+          <button id="map-zout" aria-label="缩小">−</button>
+          <button id="map-loc" aria-label="回到当前位置" data-icon="target"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 音乐 -->
+    <section class="view" id="v-music">
+      <div class="music">
+        <div class="card player">
+          <div class="np-art"></div>
+          <div style="max-width:100%;min-width:0"><div class="np-title">未在播放</div><div class="np-sub">选择音乐文件开始播放</div></div>
+          <div class="np-bar"><i></i></div>
+          <div class="times num"><span id="t-cur">0:00</span><span id="t-dur">0:00</span></div>
+          <div class="np-ctrl">
+            <button data-act="prev" aria-label="上一首"></button>
+            <button data-act="toggle" class="np-play" aria-label="播放"></button>
+            <button data-act="next" aria-label="下一首"></button>
+          </div>
+        </div>
+        <div class="card plist">
+          <div class="plist-head">
+            <label class="btn primary">选择歌曲<input type="file" id="f-files" accept="audio/*" multiple></label>
+            <label class="btn">选择文件夹<input type="file" id="f-dir" webkitdirectory multiple></label>
+            <button class="btn" id="shuffle">随机播放</button>
+          </div>
+          <ul id="plist"><li class="empty">还没有歌曲。<br>点“选择歌曲”或“选择文件夹”，从 U 盘或电脑里挑选音乐（MP3、M4A、FLAC 等）。</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 天气 -->
+    <section class="view" id="v-weather">
+      <div class="wx-app">
+        <div class="card wx-now">
+          <div class="label" id="wx-place">当前位置</div>
+          <div class="wx-ico" id="wx-ico"></div>
+          <div class="wx-temp num" id="wx-temp">--°</div>
+          <div class="wx-desc" id="wx-desc">等待定位</div>
+          <div class="wx-extra num" id="wx-extra"></div>
+        </div>
+        <div class="card wx-days" id="wx-days"><p class="note">获取定位后会显示未来几天的预报。需要联网。</p></div>
+      </div>
+    </section>
+
+    <!-- 仪表 -->
+    <section class="view" id="v-speed">
+      <div class="speed-app">
+        <div class="card gauge">
+          <svg viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="88" fill="none" stroke="var(--panel-2)" stroke-width="12" stroke-linecap="round"
+              stroke-dasharray="414.69 552.92" transform="rotate(135 100 100)"/>
+            <circle id="g-arc" cx="100" cy="100" r="88" fill="none" stroke="var(--accent)" stroke-width="12" stroke-linecap="round"
+              stroke-dasharray="0 552.92" transform="rotate(135 100 100)" style="transition:stroke-dasharray .6s ease"/>
+          </svg>
+          <div class="gauge-val"><b class="num" id="g-val">--</b><span>km/h</span></div>
+          <div class="gauge-note" id="g-note">正在请求定位…</div>
+        </div>
+        <div class="stats">
+          <div class="card stat"><div class="label">行程距离</div><b class="num" id="s-dist">0.0<small>km</small></b></div>
+          <div class="card stat"><div class="label">行程时间</div><b class="num" id="s-time">0:00</b></div>
+          <div class="card stat"><div class="label">最高速度</div><b class="num" id="s-max">0<small>km/h</small></b></div>
+          <div class="card stat"><div class="label">行驶方向</div><b id="s-head">--</b></div>
+          <div class="card stat" style="grid-column:1/3;flex-direction:row;align-items:center">
+            <div class="label">速度来自设备定位；没有 GPS 的设备可能显示不准。</div>
+            <button class="btn" id="trip-reset">重置行程</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 时钟 -->
+    <section class="view" id="v-clock">
+      <div class="clock-app">
+        <div class="big-time num" id="c-time">--:--</div>
+        <div class="big-date" id="c-date"></div>
+        <div class="sw">
+          <button class="btn" id="sw-reset">重置</button>
+          <div class="sw-val num" id="sw-val">00:00.0</div>
+          <button class="btn primary" id="sw-toggle">开始</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="view" id="v-settings">
+      <div class="set-list">
+        <div class="app-head" style="margin-bottom:1rem"><h1>设置</h1></div>
+        <div class="card set-group">
+          <div class="set-row"><div>亮度<small>在屏幕自带亮度之外再调暗，适合夜间</small></div><input type="range" id="set-dim" min="0" max="70" step="5"></div>
+          <div class="set-row"><div>深色模式</div><button class="tog" id="set-theme" aria-label="深色模式"></button></div>
+          <div class="set-row"><div>强调色</div><div class="swatches" id="set-accent"></div></div>
+        </div>
+        <div class="card set-group">
+          <div class="set-row"><div>24 小时制</div><button class="tog" id="set-h24" aria-label="24 小时制"></button></div>
+          <div class="set-row"><div>保持屏幕常亮<small>阻止电脑在行驶中自动休眠或熄屏</small></div><button class="tog" id="set-wake" aria-label="保持屏幕常亮"></button></div>
+          <div class="set-row"><div>全屏显示<small>快捷键 F；按 Esc 退出</small></div><button class="btn primary" id="set-fs">进入全屏</button></div>
+          <div class="set-row"><div>重新定位<small id="set-loc-note">用于地图和天气</small></div><button class="btn" id="set-loc">重新定位</button></div>
+        </div>
+        <p class="note" style="padding:0 .5rem 2rem">DriveDeck 是本地运行的车载风格界面。地图来自 OpenStreetMap，天气来自 Open-Meteo（连不上时改用 wttr.in），这些服务都都需要联网；你的大致位置只发给这些服务用于显示。屏幕竖放时界面会自动切换为竖屏布局。</p>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="dim"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ---------- 存储（失败时静默） ---------- */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('dd.' + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('dd.' + k, JSON.stringify(v)); }catch(e){} }
+};
+const S = Object.assign({ h24:true, dim:0, accent:'#0a84ff', theme:'dark', wake:true }, store.get('settings', {}));
+const saveS = () => store.set('settings', S);
+
+/* ---------- 图标 ---------- */
+const ICONS = {
+  nav:   '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 10.6 20.2 3.4c.5-.2 1 .3.8.8l-7.2 16.7c-.3.6-1.1.5-1.2-.1l-1.4-6.3-6.3-1.4c-.6-.1-.7-.9-.1-1.2z"/></svg>',
+  note:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3" fill="currentColor"/><circle cx="18" cy="16" r="3" fill="currentColor"/></svg>',
+  gauge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4.2 18.5a9 9 0 1 1 15.6 0"/><path d="M12 14l4.5-4.5"/><circle cx="12" cy="14" r="1.3" fill="currentColor"/></svg>',
+  cloud: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8.5" cy="8" r="3.4" opacity=".85"/><path d="M7.5 19h9.5a4 4 0 0 0 .4-8A5.5 5.5 0 0 0 7 11.5a3.75 3.75 0 0 0 .5 7.5z"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>',
+  gear:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  grid:  '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>',
+  dash:  '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="9" height="18" rx="2"/><rect x="14" y="3" width="7" height="8" rx="2"/><rect x="14" y="13" width="7" height="8" rx="2"/></svg>',
+  target:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 10.6 20.2 3.4c.5-.2 1 .3.8.8l-7.2 16.7c-.3.6-1.1.5-1.2-.1l-1.4-6.3-6.3-1.4c-.6-.1-.7-.9-.1-1.2z"/></svg>',
+  play:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15c0 .8.9 1.3 1.6.8l11.5-7.5c.6-.4.6-1.2 0-1.6L8.6 3.7C7.9 3.2 7 3.7 7 4.5z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="14" y="4" width="4.5" height="16" rx="1.2"/></svg>',
+  prev:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.5 6.8v10.4c0 .7-.8 1.1-1.4.7L2.8 12.7a.85.85 0 0 1 0-1.4l7.3-5.2c.6-.4 1.4 0 1.4.7zm10 0v10.4c0 .7-.8 1.1-1.4.7l-7.3-5.2a.85.85 0 0 1 0-1.4l7.3-5.2c.6-.4 1.4 0 1.4.7z"/></svg>',
+  next:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 6.8v10.4c0 .7.8 1.1 1.4.7l7.3-5.2a.85.85 0 0 0 0-1.4l-7.3-5.2c-.6-.4-1.4 0-1.4.7zm-10 0v10.4c0 .7.8 1.1 1.4.7l7.3-5.2a.85.85 0 0 0 0-1.4L3.9 6.1c-.6-.4-1.4 0-1.4.7z"/></svg>',
+  wifi:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M2 8.8a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16.2a5 5 0 0 1 6 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/></svg>',
+  nowifi:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 3l18 18M9 16.2a5 5 0 0 1 6 0M5.5 12.5a10 10 0 0 1 4-2.2M14.5 10.3a10 10 0 0 1 4 2.2"/></svg>',
+  bat:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="18" height="10" rx="2.5"/><path d="M22 10.5v3" stroke-linecap="round"/></svg>'
+};
+const fillIcons = (root = document) => root.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = ICONS[el.dataset.icon] || ''; });
+fillIcons();
+$$('[data-act="prev"]').forEach(b => b.innerHTML = ICONS.prev);
+$$('[data-act="next"]').forEach(b => b.innerHTML = ICONS.next);
+
+/* ---------- 视图切换 ---------- */
+let current = 'home';
+function show(id){
+  current = id;
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === 'v-' + id));
+  $$('.dock button').forEach(b => b.classList.toggle('on', b.dataset.open === id));
+  $('#home-btn').innerHTML = id === 'home' ? ICONS.grid : ICONS.dash;
+  if (id === 'speed') startGPS();
+  if (id === 'map') renderMap();
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-open]');
+  if (t && !e.target.closest('[data-act]')) show(t.dataset.open);
+});
+$('#home-btn').addEventListener('click', () => show(current === 'home' ? 'apps' : 'home'));
+show('home');
+
+/* ---------- 时间 ---------- */
+const WD = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+const pad = n => String(n).padStart(2, '0');
+function fmtTime(d, sec){
+  let h = d.getHours(); const m = pad(d.getMinutes());
+  let s = '';
+  if (!S.h24){ s = h < 12 ? '上午 ' : '下午 '; h = h % 12 || 12; }
+  const core = (S.h24 ? pad(h) : h) + ':' + m + (sec ? ':' + pad(d.getSeconds()) : '');
+  return { core, ap: s.trim() };
+}
+function tick(){
+  const d = new Date();
+  const t = fmtTime(d);
+  $('#rail-time').textContent = t.core;
+  $('#c-time').textContent = t.core;
+  $('#c-date').textContent = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${WD[d.getDay()]}${t.ap ? ' · ' + t.ap : ''}`;
+  $('#d-wd').textContent = WD[d.getDay()];
+  $('#d-day').textContent = d.getDate();
+  $('#d-ym').textContent = `${d.getFullYear()}年${d.getMonth()+1}月`;
+  renderTrip();
+}
+setInterval(tick, 1000);
+
+/* ---------- 网络 / 电量 ---------- */
+function renderNet(){
+  $('#st-net').innerHTML = (navigator.onLine ? ICONS.wifi : ICONS.nowifi) + (navigator.onLine ? '' : '离线');
+}
+addEventListener('online', () => { renderNet(); renderMap(); loadWeather(); });
+addEventListener('offline', () => { renderNet(); renderMap(); });
+renderNet();
+if (navigator.getBattery){
+  navigator.getBattery().then(b => {
+    const r = () => { $('#st-bat').innerHTML = ICONS.bat + Math.round(b.level * 100) + '%' + (b.charging ? '⚡' : ''); };
+    r(); b.addEventListener('levelchange', r); b.addEventListener('chargingchange', r);
+  }).catch(() => {});
+}
+
+/* ---------- 定位 / 地图 ---------- */
+let loc = store.get('loc', null);
+let zoom = 1;
+let locMsg = '';
+function locate(){
+  if (!navigator.geolocation){ locMsg = '这台设备不支持定位'; renderMap(); return; }
+  locMsg = '正在获取定位…'; renderMap();
+  navigator.geolocation.getCurrentPosition(p => {
+    loc = { lat: p.coords.latitude, lon: p.coords.longitude };
+    store.set('loc', loc); locMsg = ''; zoom = 1;
+    renderMap(); loadWeather();
+    $('#set-loc-note').textContent = '已更新：' + new Date().toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' });
+  }, err => {
+    locMsg = err.code === 1 ? '定位权限被拒绝，请在浏览器设置里允许定位' : '暂时无法获取定位';
+    renderMap();
+  }, { enableHighAccuracy:false, timeout:15000, maximumAge:600000 });
+}
+function mapSrc(){
+  const dy = 0.012 * zoom, dx = dy * 1.9;
+  const { lat, lon } = loc;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${(lon-dx).toFixed(5)},${(lat-dy).toFixed(5)},${(lon+dx).toFixed(5)},${(lat+dy).toFixed(5)}&layer=mapnik&marker=${lat.toFixed(5)},${lon.toFixed(5)}`;
+}
+function renderMap(){
+  const ok = loc && navigator.onLine;
+  const msg = !navigator.onLine ? '<b>离线</b>地图需要联网（可用手机热点）'
+            : !loc ? `<b>${locMsg ? '' : '尚未定位'}</b>${locMsg || '点按“重新定位”获取位置'}`
+            : '';
+  [['#map-mini', '#map-mini-empty'], ['#map-full', '#map-full-empty']].forEach(([f, e]) => {
+    const frame = $(f), empty = $(e);
+    if (ok){
+      const src = mapSrc();
+      if (frame.dataset.src !== src){ frame.src = src; frame.dataset.src = src; }
+      frame.hidden = false; empty.hidden = true;
+    } else {
+      frame.hidden = true; empty.hidden = false;
+      empty.innerHTML = `<div>${msg}${!loc && navigator.onLine ? '<div style="margin-top:1rem"><button class="btn primary" data-locate>重新定位</button></div>' : ''}</div>`;
+    }
+  });
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-locate]')){ e.stopPropagation(); locate(); } }, true);
+$('#map-zin').addEventListener('click', () => { zoom = Math.max(0.15, zoom / 2); renderMap(); });
+$('#map-zout').addEventListener('click', () => { zoom = Math.min(64, zoom * 2); renderMap(); });
+$('#map-loc').addEventListener('click', locate);
+$('#set-loc').addEventListener('click', locate);
+
+/* ---------- 天气 ---------- */
+const CLOUD = 'M7.5 18h9.5a4 4 0 0 0 .4-8A5.5 5.5 0 0 0 7 10.5a3.75 3.75 0 0 0 .5 7.5z';
+function wxSvg(k){
+  const sun = (cx, cy, r) => `<g stroke="#ffd60a" stroke-width="1.6" stroke-linecap="round">${[0,45,90,135,180,225,270,315].map(a => {
+      const t = a * Math.PI / 180;
+      return `<line x1="${(cx+Math.cos(t)*(r+1.8)).toFixed(2)}" y1="${(cy+Math.sin(t)*(r+1.8)).toFixed(2)}" x2="${(cx+Math.cos(t)*(r+3.4)).toFixed(2)}" y2="${(cy+Math.sin(t)*(r+3.4)).toFixed(2)}"/>`;
+    }).join('')}</g><circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffd60a"/>`;
+  const cloud = (dy = 0) => `<path d="${CLOUD}" style="fill:var(--cloud)" transform="translate(0 ${dy})"/>`;
+  const b = {
+    sun: sun(12, 12, 4.5),
+    partly: `<g transform="translate(1 1) scale(.75)">${sun(9, 8, 4)}</g>` + cloud(1.5),
+    cloud: cloud(),
+    fog: cloud(-3) + '<g stroke="var(--cloud)" style="stroke:var(--cloud)" stroke-width="1.6" stroke-linecap="round"><line x1="5" y1="18.5" x2="19" y2="18.5"/><line x1="7.5" y1="21.5" x2="16.5" y2="21.5"/></g>',
+    rain: cloud(-3) + '<g stroke="#64d2ff" stroke-width="1.7" stroke-linecap="round"><line x1="8.5" y1="17.5" x2="7.5" y2="20.5"/><line x1="12.5" y1="17.5" x2="11.5" y2="20.5"/><line x1="16.5" y1="17.5" x2="15.5" y2="20.5"/></g>',
+    snow: cloud(-3) + '<g fill="#64d2ff"><circle cx="8.5" cy="19" r="1.1"/><circle cx="12.5" cy="20.8" r="1.1"/><circle cx="16.5" cy="19" r="1.1"/></g>',
+    storm: cloud(-3) + '<path d="M13 15.5l-3 4.3h2.7l-1.6 3.7 4.4-5.6h-2.7l1.7-2.4z" fill="#ffd60a"/>'
+  }[k] || cloud();
+  return `<svg viewBox="0 0 24 24">${b}</svg>`;
+}
+function wxInfo(c){
+  if (c === 0) return ['晴', 'sun'];
+  if (c === 1) return ['晴间多云', 'partly'];
+  if (c === 2) return ['多云', 'partly'];
+  if (c === 3) return ['阴', 'cloud'];
+  if (c <= 48) return ['雾', 'fog'];
+  if (c <= 57) return ['毛毛雨', 'rain'];
+  if (c <= 67) return [c >= 65 ? '大雨' : c >= 63 ? '中雨' : '小雨', 'rain'];
+  if (c <= 77) return ['雪', 'snow'];
+  if (c <= 82) return ['阵雨', 'rain'];
+  if (c <= 86) return ['阵雪', 'snow'];
+  return ['雷雨', 'storm'];
+}
+let wx = (store.get('wx', null) || {}).j || null;
+async function getJSON(u, ms){
+  const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
+  try { const r = await fetch(u, { signal: ac.signal }); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+/* wttr.in 使用 WWO 天气代码，换算成 Open-Meteo 的 WMO 代码 */
+function wwo2wmo(c){
+  c = +c;
+  if (c === 113) return 0;
+  if (c === 116) return 2;
+  if (c === 119 || c === 122) return 3;
+  if ([143, 248, 260].includes(c)) return 45;
+  if ([200, 386, 389, 392, 395].includes(c)) return 95;
+  if ([176, 353].includes(c)) return 80;
+  if ([299, 302, 356].includes(c)) return 63;
+  if ([305, 308, 359].includes(c)) return 65;
+  if ([179, 227, 230, 323, 326, 329, 332, 335, 338, 368, 371, 377, 374, 350].includes(c)) return 73;
+  return 61;
+}
+async function fromOpenMeteo(){
+  const u = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat.toFixed(2)}&longitude=${loc.lon.toFixed(2)}`
+    + '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m'
+    + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7';
+  return getJSON(u, 7000);
+}
+async function fromWttr(){
+  const j = await getJSON(`https://wttr.in/${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}?format=j1`, 12000);
+  const c = j.current_condition[0], days = j.weather;
+  return {
+    current: { temperature_2m: +c.temp_C, apparent_temperature: +c.FeelsLikeC, relative_humidity_2m: +c.humidity,
+               weather_code: wwo2wmo(c.weatherCode), wind_speed_10m: +c.windspeedKmph },
+    daily: {
+      time: days.map(d => d.date),
+      weather_code: days.map(d => wwo2wmo((d.hourly[4] || d.hourly[0]).weatherCode)),
+      temperature_2m_max: days.map(d => +d.maxtempC),
+      temperature_2m_min: days.map(d => +d.mintempC),
+      precipitation_probability_max: days.map(d => Math.max(...d.hourly.map(h => +h.chanceofrain || 0)))
+    }
+  };
+}
+async function loadWeather(){
+  if (!loc || !navigator.onLine) return;
+  for (const src of [fromOpenMeteo, fromWttr]){
+    try {
+      wx = await src();
+      store.set('wx', { t: Date.now(), j: wx });
+      renderWx();
+      return;
+    } catch (e) {}
+  }
+  if (!wx) $('#wx-mini-desc').textContent = '天气获取失败';
+}
+function renderWx(){
+  if (!wx || !wx.current) return;
+  const c = wx.current, d = wx.daily;
+  const [desc, kind] = wxInfo(c.weather_code);
+  const T = v => Math.round(v) + '°';
+  $('#wx-mini-ico').innerHTML = wxSvg(kind);
+  $('#wx-mini-temp').textContent = T(c.temperature_2m);
+  $('#wx-mini-desc').textContent = desc;
+  $('#wx-mini-hl').textContent = `最高 ${T(d.temperature_2m_max[0])}  最低 ${T(d.temperature_2m_min[0])}`;
+  $('#wx-ico').innerHTML = wxSvg(kind);
+  $('#wx-temp').textContent = T(c.temperature_2m);
+  $('#wx-desc').textContent = desc;
+  $('#wx-extra').innerHTML = `<div>体感<b>${T(c.apparent_temperature)}</b></div><div>湿度<b>${Math.round(c.relative_humidity_2m)}%</b></div><div>风速<b>${Math.round(c.wind_speed_10m)} km/h</b></div>`;
+  const lo = Math.min(...d.temperature_2m_min), hi = Math.max(...d.temperature_2m_max), span = Math.max(1, hi - lo);
+  $('#wx-days').innerHTML = d.time.map((t, i) => {
+    const day = i === 0 ? '今天' : WD[new Date(t + 'T12:00').getDay()].replace('星期', '周');
+    const [, k] = wxInfo(d.weather_code[i]);
+    const p = d.precipitation_probability_max ? d.precipitation_probability_max[i] : null;
+    const a = (d.temperature_2m_min[i] - lo) / span * 100, b = (d.temperature_2m_max[i] - lo) / span * 100;
+    return `<div class="wx-day num"><div>${day}</div>${wxSvg(k)}<div class="lo">${T(d.temperature_2m_min[i])}</div>`
+      + `<div class="range"><i style="left:${a}%;right:${100-b}%"></i></div><div>${T(d.temperature_2m_max[i])}${p >= 30 ? `<div class="p">${p}%</div>` : ''}</div></div>`;
+  }).join('');
+}
+renderWx();
+setInterval(loadWeather, 20 * 60 * 1000);
+
+/* ---------- 音乐 ---------- */
+const audio = new Audio();
+let list = [], idx = -1;
+const fmtSec = s => !isFinite(s) ? '0:00' : Math.floor(s / 60) + ':' + pad(Math.floor(s % 60));
+const hue = str => { let h = 0; for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
+function loadFiles(files){
+  const audios = [...files].filter(f => f.type.startsWith('audio/') || /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(f.name))
+    .sort((a, b) => (a.webkitRelativePath || a.name).localeCompare(b.webkitRelativePath || b.name, 'zh-CN', { numeric:true }));
+  if (!audios.length) return;
+  list.forEach(t => URL.revokeObjectURL(t.url));
+  list = audios.map(f => {
+    const parts = (f.webkitRelativePath || '').split('/');
+    return { name: f.name.replace(/\.[^.]+$/, ''), folder: parts.length > 1 ? parts[parts.length - 2] : '本地音乐', url: URL.createObjectURL(f) };
+  });
+  play(0);
+}
+function play(i){
+  if (!list.length){ show('music'); return; }
+  idx = (i + list.length) % list.length;
+  audio.src = list[idx].url;
+  audio.play().catch(() => {});
+  renderNP();
+}
+function toggle(){
+  if (idx < 0){ show('music'); return; }
+  audio.paused ? audio.play().catch(() => {}) : audio.pause();
+}
+function renderNP(){
+  const t = list[idx];
+  $$('.np-title').forEach(el => el.textContent = t ? t.name : '未在播放');
+  $$('.np-sub').forEach(el => el.textContent = t ? `${t.folder} · ${idx + 1}/${list.length}` : (el.closest('#v-music') ? '选择音乐文件开始播放' : '点按选择音乐文件'));
+  $$('.np-art').forEach(el => {
+    el.innerHTML = ICONS.note;
+    el.style.background = t ? `linear-gradient(140deg,hsl(${hue(t.name)},70%,55%),hsl(${(hue(t.name)+50)%360},65%,30%))` : '';
+  });
+  $$('.np-play').forEach(b => { b.innerHTML = audio.paused ? ICONS.play : ICONS.pause; b.setAttribute('aria-label', audio.paused ? '播放' : '暂停'); });
+  $('#plist').innerHTML = list.length
+    ? list.map((x, i) => `<li data-i="${i}" class="${i === idx ? 'cur' : ''}"><span class="num">${i + 1}</span><div>${x.name.replace(/[<&]/g, c => c === '<' ? '&lt;' : '&amp;')}</div></li>`).join('')
+    : $('#plist').innerHTML;
+  const cur = $('#plist .cur'); if (cur) cur.scrollIntoView({ block:'nearest' });
+  if ('mediaSession' in navigator && t){
+    navigator.mediaSession.metadata = new MediaMetadata({ title: t.name, artist: t.folder });
+  }
+}
+audio.addEventListener('play', renderNP);
+audio.addEventListener('pause', renderNP);
+audio.addEventListener('ended', () => play(idx + 1));
+audio.addEventListener('timeupdate', () => {
+  const p = audio.duration ? audio.currentTime / audio.duration * 100 : 0;
+  $$('.np-bar i').forEach(el => el.style.width = p + '%');
+  $('#t-cur').textContent = fmtSec(audio.currentTime);
+  $('#t-dur').textContent = fmtSec(audio.duration);
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (b){ e.stopPropagation(); ({ prev: () => play(idx - 1), next: () => play(idx + 1), toggle })[b.dataset.act](); return; }
+  const li = e.target.closest('#plist li[data-i]');
+  if (li) play(+li.dataset.i);
+  const bar = e.target.closest('.np-bar');
+  if (bar && audio.duration){ const r = bar.getBoundingClientRect(); audio.currentTime = (e.clientX - r.left) / r.width * audio.duration; }
+});
+$('#f-files').addEventListener('change', e => loadFiles(e.target.files));
+$('#f-dir').addEventListener('change', e => loadFiles(e.target.files));
+$('#shuffle').addEventListener('click', () => {
+  if (!list.length) return;
+  for (let i = list.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+  play(0);
+});
+if ('mediaSession' in navigator){
+  try {
+    navigator.mediaSession.setActionHandler('previoustrack', () => play(idx - 1));
+    navigator.mediaSession.setActionHandler('nexttrack', () => play(idx + 1));
+  } catch (e) {}
+}
+renderNP();
+
+/* ---------- 仪表 / 行程 ---------- */
+let watchId = null;
+let trip = store.get('trip', { dist:0, start:null, max:0, last:null });
+const hav = (a, b) => {
+  const R = 6371000, r = x => x * Math.PI / 180;
+  const dLat = r(b.lat - a.lat), dLon = r(b.lon - a.lon);
+  const h = Math.sin(dLat/2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLon/2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
+const DIRS = ['北','东北','东','东南','南','西南','西','西北'];
+function setSpeed(kmh){
+  const v = kmh == null ? null : Math.max(0, kmh);
+  $('#g-val').textContent = v == null ? '--' : Math.round(v);
+  const frac = v == null ? 0 : Math.min(1, v / 160);
+  $('#g-arc').setAttribute('stroke-dasharray', `${(414.69 * frac).toFixed(1)} 552.92`);
+}
+function startGPS(){
+  if (watchId != null) return;
+  if (!navigator.geolocation){ $('#g-note').textContent = '这台设备不支持定位'; return; }
+  watchId = navigator.geolocation.watchPosition(p => {
+    const { latitude:lat, longitude:lon, speed, heading, accuracy } = p.coords;
+    let kmh = (speed != null && !isNaN(speed)) ? speed * 3.6 : null;
+    if (trip.start == null) trip.start = Date.now();
+    if (trip.last && accuracy < 60){
+      const d = hav(trip.last, { lat, lon }), dt = (p.timestamp - trip.last.t) / 1000;
+      if (d > 4 && d < 3000) trip.dist += d;
+      if (kmh == null && dt > 0 && dt < 30) kmh = d / dt * 3.6;
+    }
+    trip.last = { lat, lon, t: p.timestamp };
+    if (kmh != null && kmh < 300) trip.max = Math.max(trip.max, kmh);
+    setSpeed(kmh);
+    $('#s-head').textContent = (heading != null && !isNaN(heading)) ? DIRS[Math.round(heading / 45) % 8] : '--';
+    $('#g-note').textContent = accuracy > 100 ? `定位精度较低（约 ${Math.round(accuracy)} 米）` : '';
+    if (!loc){ loc = { lat, lon }; store.set('loc', loc); renderMap(); loadWeather(); }
+    store.set('trip', trip);
+    renderTrip();
+  }, err => {
+    $('#g-note').textContent = err.code === 1 ? '定位权限被拒绝' : '暂时无法获取定位';
+    watchId = null;
+  }, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
+}
+function renderTrip(){
+  const km = trip.dist / 1000;
+  $('#s-dist').innerHTML = km.toFixed(1) + '<small>km</small>';
+  $('#s-max').innerHTML = Math.round(trip.max) + '<small>km/h</small>';
+  let el = 0; if (trip.start) el = Math.floor((Date.now() - trip.start) / 1000);
+  const h = Math.floor(el / 3600), m = Math.floor(el % 3600 / 60);
+  $('#s-time').textContent = h ? `${h}:${pad(m)}` : `${m}:${pad(el % 60)}`;
+  $('#d-trip').textContent = trip.start ? `本次行程 ${km.toFixed(1)} km` : '';
+}
+$('#trip-reset').addEventListener('click', () => {
+  trip = { dist:0, start: watchId != null ? Date.now() : null, max:0, last:null };
+  store.set('trip', trip); renderTrip(); setSpeed(null);
+});
+
+/* ---------- 秒表 ---------- */
+let swStart = null, swAcc = 0, swTimer = null;
+function swRender(){
+  const ms = swAcc + (swStart ? Date.now() - swStart : 0);
+  const t = Math.floor(ms / 100);
+  $('#sw-val').textContent = `${pad(Math.floor(t / 600))}:${pad(Math.floor(t / 10) % 60)}.${t % 10}`;
+}
+$('#sw-toggle').addEventListener('click', e => {
+  if (swStart){ swAcc += Date.now() - swStart; swStart = null; clearInterval(swTimer); e.target.textContent = '继续'; }
+  else { swStart = Date.now(); swTimer = setInterval(swRender, 100); e.target.textContent = '暂停'; }
+  swRender();
+});
+$('#sw-reset').addEventListener('click', () => {
+  swAcc = 0; if (swStart) swStart = Date.now(); swRender();
+  if (!swStart) $('#sw-toggle').textContent = '开始';
+});
+
+/* ---------- 设置 ---------- */
+const ACCENTS = ['#0a84ff', '#34c759', '#ff9f0a', '#ff375f', '#bf5af2', '#64d2ff'];
+let wakeLock = null;
+async function applyWake(){
+  try {
+    if (S.wake && 'wakeLock' in navigator && document.visibilityState === 'visible' && !wakeLock){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!S.wake && wakeLock){ await wakeLock.release(); wakeLock = null; }
+  } catch (e) {}
+}
+document.addEventListener('visibilitychange', applyWake);
+function applySettings(){
+  document.documentElement.dataset.theme = S.theme;
+  document.documentElement.style.setProperty('--accent', S.accent);
+  $('#dim').style.opacity = S.dim / 100;
+  $('#set-dim').value = S.dim;
+  $('#set-theme').classList.toggle('on', S.theme === 'dark');
+  $('#set-h24').classList.toggle('on', S.h24);
+  $('#set-wake').classList.toggle('on', S.wake);
+  $('#set-accent').innerHTML = ACCENTS.map(c => `<button data-c="${c}" class="${c === S.accent ? 'on' : ''}" style="background:${c}" aria-label="强调色"></button>`).join('');
+  saveS(); tick(); applyWake();
+}
+$('#set-dim').addEventListener('input', e => { S.dim = +e.target.value; applySettings(); });
+$('#set-theme').addEventListener('click', () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; applySettings(); });
+$('#set-h24').addEventListener('click', () => { S.h24 = !S.h24; applySettings(); });
+$('#set-wake').addEventListener('click', () => { S.wake = !S.wake; applySettings(); });
+$('#set-accent').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b){ S.accent = b.dataset.c; applySettings(); } });
+function toggleFS(){
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+$('#set-fs').addEventListener('click', toggleFS);
+document.addEventListener('fullscreenchange', () => { $('#set-fs').textContent = document.fullscreenElement ? '退出全屏' : '进入全屏'; });
+addEventListener('keydown', e => {
+  if (e.key === 'f' || e.key === 'F') toggleFS();
+  else if (e.key === ' ' && current === 'music'){ e.preventDefault(); toggle(); }
+  else if (e.key === 'h' || e.key === 'H') show('home');
+});
+applySettings();
+
+/* ---------- 鼠标静止 3 秒后隐藏光标 ---------- */
+let idleT;
+addEventListener('pointermove', () => { document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 3000); });
+addEventListener('contextmenu', e => e.preventDefault());
+
+/* ---------- 手机适配 ---------- */
+// 不支持全屏 API（如 iPhone）时隐藏全屏设置；从主屏幕打开时本来就是全屏
+if (!document.documentElement.requestFullscreen) $('#set-fs').closest('.set-row').hidden = true;
+// 离线缓存：网址打开过一次后，没信号也能打开界面
+if ('serviceWorker' in navigator && location.protocol === 'https:'){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+/* ---------- 启动 ---------- */
+renderMap();
+renderTrip();
+if (loc) loadWeather();
+locate();
+})();
+</script>
+</body>
+</html>
