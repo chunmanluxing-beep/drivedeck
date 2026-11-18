@@ -44,7 +44,7 @@ svg{display:block}
 @media (orientation:landscape) and (max-height:500px){
   #stage .view{padding:.7rem}
   .map-app{inset:.7rem}
-  .dash,.dash-sub,.music,.wx-app,.speed-app,.stats{gap:.7rem}
+  .dash,.dash-sub,.music,.wx-app,.speed-app,.stats,.drive,.drive-side{gap:.7rem}
   .rail{padding-top:.9rem;padding-bottom:.9rem}
 }
 html,body{overscroll-behavior:none;touch-action:manipulation}
@@ -164,6 +164,30 @@ input[type=file]{display:none}
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:1.8rem;font-weight:300}
 .map-tools svg{width:1.5rem;height:1.5rem}
 
+/* 驾驶：谷歌地图 + 车速 + 网易云 同屏 */
+.g-drive{background:linear-gradient(160deg,#0a84ff,#0040dd)}
+.drive{height:100%;display:grid;grid-template-columns:1.8fr 1fr;gap:1.2rem}
+.drive-map{min-height:0}
+.dest{position:absolute;left:.8rem;right:5.2rem;bottom:2.6rem;z-index:2;display:flex;gap:.5rem}
+.dest input{flex:1;min-width:0;font:inherit;font-size:max(16px,1.2rem);padding:.6rem 1rem;border-radius:1rem;border:0;outline:0;
+  background:rgba(28,28,30,.9);color:#fff;-webkit-appearance:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.dest input::placeholder{color:rgba(255,255,255,.55)}
+.dest .btn{padding:.6rem 1rem;box-shadow:var(--shadow)}
+.dest .btn:not(.primary){background:rgba(28,28,30,.9);color:#fff}
+.drive-side{display:grid;grid-template-rows:1fr auto;gap:1.2rem;min-height:0;min-width:0}
+.drive-speed{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;cursor:pointer;min-height:0}
+.drive-speed b{font-size:11rem;font-weight:200;line-height:.95;letter-spacing:-.05em}
+.drive-speed span{font-size:1.2rem;color:var(--muted)}
+.drive-trip{display:flex;gap:1.6rem;color:var(--muted);font-size:1rem;margin-top:.8rem}
+.drive-trip em{font-style:normal;color:var(--text);font-weight:600}
+.drive-music{padding:.7rem;display:flex;flex-direction:column;gap:.6rem}
+.ne-frame{display:block;width:100%;height:86px;border:0;border-radius:.9rem;background:#fff}
+html[data-theme=dark] .ne-frame{filter:invert(.9) hue-rotate(180deg)}
+.drive-btns{display:flex;gap:.6rem}
+.drive-btns .btn{flex:1;justify-content:center;padding:.65rem .5rem;font-size:max(12px,1rem);white-space:nowrap}
+.ne-form{display:flex;gap:.6rem;flex:1;max-width:30rem}
+.ne-form input{flex:1;min-width:0;font:inherit;font-size:max(16px,1rem);padding:.6rem .9rem;border-radius:1rem;border:0;outline:0;background:var(--panel-2);color:var(--text);-webkit-appearance:none}
+
 /* 天气应用 */
 .wx-app{display:grid;grid-template-columns:1fr 1.2fr;gap:1.2rem;height:100%}
 .wx-now{padding:2.2rem;display:flex;flex-direction:column;justify-content:center}
@@ -230,6 +254,9 @@ input[type=range]{width:20rem;accent-color:var(--accent);height:2rem}
   .card-map{grid-row:auto}
   .apps{grid-template-columns:repeat(3,1fr)}
   .music,.wx-app,.speed-app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .drive{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  .drive-side{grid-template-rows:none;grid-template-columns:1fr 1.5fr}
+  .drive-speed b{font-size:7rem}
   .music .player{padding:1.6rem}
   .music .np-art{width:min(15rem,25vh);height:min(15rem,25vh)}
   .gauge svg{width:min(26rem,40vh);height:min(26rem,40vh)}
@@ -246,7 +273,7 @@ input[type=range]{width:20rem;accent-color:var(--accent);height:2rem}
       <span id="st-bat"></span>
     </div>
     <nav class="dock">
-      <button data-open="map" aria-label="地图"><div class="ico g-map" data-icon="nav"></div></button>
+      <button data-open="drive" aria-label="驾驶"><div class="ico g-drive" data-icon="nav"></div></button>
       <button data-open="music" aria-label="音乐"><div class="ico g-music" data-icon="note"></div></button>
       <button data-open="speed" aria-label="仪表"><div class="ico g-speed" data-icon="gauge"></div></button>
     </nav>
@@ -295,12 +322,42 @@ input[type=range]{width:20rem;accent-color:var(--accent);height:2rem}
     <!-- 应用网格 -->
     <section class="view" id="v-apps">
       <div class="apps">
+        <button class="app-tile" data-open="drive"><div class="ico g-drive" data-icon="nav"></div>驾驶</button>
         <button class="app-tile" data-open="map"><div class="ico g-map" data-icon="nav"></div>地图</button>
         <button class="app-tile" data-open="music"><div class="ico g-music" data-icon="note"></div>音乐</button>
         <button class="app-tile" data-open="speed"><div class="ico g-speed" data-icon="gauge"></div>仪表</button>
         <button class="app-tile" data-open="weather"><div class="ico g-wx" data-icon="cloud"></div>天气</button>
         <button class="app-tile" data-open="clock"><div class="ico g-clock" data-icon="clock"></div>时钟</button>
         <button class="app-tile" data-open="settings"><div class="ico g-set" data-icon="gear"></div>设置</button>
+      </div>
+    </section>
+
+    <!-- 驾驶 -->
+    <section class="view" id="v-drive">
+      <div class="drive">
+        <div class="card drive-map">
+          <iframe class="map-frame" id="drive-frame" title="谷歌地图" hidden></iframe>
+          <div class="map-empty" id="drive-empty"></div>
+          <form class="dest" id="dest-form" autocomplete="off">
+            <input id="dest-in" enterkeyhint="go" placeholder="输入目的地，查看路线">
+            <button type="submit" class="btn primary">路线</button>
+            <button type="button" class="btn" id="dest-clear" hidden>清除</button>
+          </form>
+        </div>
+        <div class="drive-side">
+          <div class="card drive-speed" data-open="speed">
+            <div class="label">车速</div>
+            <b class="num" id="dv-speed">--</b><span>km/h</span>
+            <div class="drive-trip num"><div>行程 <em id="dv-dist">0.0</em> km</div><div>最高 <em id="dv-max">0</em></div></div>
+          </div>
+          <div class="card drive-music">
+            <iframe class="ne-frame" id="ne-frame" title="网易云音乐"></iframe>
+            <div class="drive-btns">
+              <button class="btn primary" id="go-gmaps">谷歌导航</button>
+              <button class="btn" id="go-ne">网易云 App</button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -409,8 +466,13 @@ input[type=range]{width:20rem;accent-color:var(--accent);height:2rem}
           <div class="set-row"><div>保持屏幕常亮<small>阻止电脑在行驶中自动休眠或熄屏</small></div><button class="tog" id="set-wake" aria-label="保持屏幕常亮"></button></div>
           <div class="set-row"><div>全屏显示<small>快捷键 F；按 Esc 退出</small></div><button class="btn primary" id="set-fs">进入全屏</button></div>
           <div class="set-row"><div>重新定位<small id="set-loc-note">用于地图和天气</small></div><button class="btn" id="set-loc">重新定位</button></div>
+          <div class="set-row"><div>打开后直接进入驾驶画面</div><button class="tog" id="set-start" aria-label="打开后直接进入驾驶画面"></button></div>
         </div>
-        <p class="note" style="padding:0 .5rem 2rem">DriveDeck 是本地运行的车载风格界面。地图来自 OpenStreetMap，天气来自 Open-Meteo（连不上时改用 wttr.in），这些服务都都需要联网；你的大致位置只发给这些服务用于显示。屏幕竖放时界面会自动切换为竖屏布局。</p>
+        <div class="card set-group">
+          <div class="set-row"><div>网易云歌单<small id="ne-note">在网易云 App 里点歌单的“分享 → 复制链接”，粘贴到这里</small></div>
+            <form class="ne-form" id="ne-form" autocomplete="off"><input id="ne-in" placeholder="music.163.com/playlist?id=…"><button class="btn primary">保存</button></form></div>
+        </div>
+        <p class="note" style="padding:0 .5rem 2rem">DriveDeck 是本地运行的车载风格界面。地图来自谷歌地图，音乐播放器来自网易云音乐外链播放器，天气来自 Open-Meteo（连不上时改用 wttr.in），这些服务都需要联网；你的大致位置只发给这些服务用于显示。屏幕竖放时界面会自动切换为竖屏布局。</p>
       </div>
     </section>
   </main>
@@ -428,7 +490,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem('dd.' + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem('dd.' + k, JSON.stringify(v)); }catch(e){} }
 };
-const S = Object.assign({ h24:true, dim:0, accent:'#0a84ff', theme:'dark', wake:true }, store.get('settings', {}));
+const S = Object.assign({ h24:true, dim:0, accent:'#0a84ff', theme:'dark', wake:true, startDrive:true, ne:{ type:0, id:'3778678' } }, store.get('settings', {}));
 const saveS = () => store.set('settings', S);
 
 /* ---------- 图标 ---------- */
@@ -464,6 +526,7 @@ function show(id){
   $('#home-btn').innerHTML = id === 'home' ? ICONS.grid : ICONS.dash;
   if (id === 'speed') startGPS();
   if (id === 'map') renderMap();
+  if (id === 'drive'){ startGPS(); renderDrive(); renderNE(); }
 }
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-open]');
@@ -519,7 +582,7 @@ function locate(){
   navigator.geolocation.getCurrentPosition(p => {
     loc = { lat: p.coords.latitude, lon: p.coords.longitude };
     store.set('loc', loc); locMsg = ''; zoom = 1;
-    renderMap(); loadWeather();
+    renderMap(); loadWeather(); if (current === 'drive') renderDrive(true);
     $('#set-loc-note').textContent = '已更新：' + new Date().toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' });
   }, err => {
     locMsg = err.code === 1 ? '定位权限被拒绝，请在浏览器设置里允许定位' : '暂时无法获取定位';
@@ -527,9 +590,8 @@ function locate(){
   }, { enableHighAccuracy:false, timeout:15000, maximumAge:600000 });
 }
 function mapSrc(){
-  const dy = 0.012 * zoom, dx = dy * 1.9;
-  const { lat, lon } = loc;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${(lon-dx).toFixed(5)},${(lat-dy).toFixed(5)},${(lon+dx).toFixed(5)},${(lat+dy).toFixed(5)}&layer=mapnik&marker=${lat.toFixed(5)},${lon.toFixed(5)}`;
+  const z = Math.max(3, Math.min(20, Math.round(15 - Math.log2(zoom))));
+  return `https://maps.google.com/maps?q=${loc.lat.toFixed(5)},${loc.lon.toFixed(5)}&z=${z}&hl=zh-CN&output=embed`;
 }
 function renderMap(){
   const ok = loc && navigator.onLine;
@@ -547,6 +609,7 @@ function renderMap(){
       empty.innerHTML = `<div>${msg}${!loc && navigator.onLine ? '<div style="margin-top:1rem"><button class="btn primary" data-locate>重新定位</button></div>' : ''}</div>`;
     }
   });
+  if (current === 'drive') renderDrive();
 }
 document.addEventListener('click', e => { if (e.target.closest('[data-locate]')){ e.stopPropagation(); locate(); } }, true);
 $('#map-zin').addEventListener('click', () => { zoom = Math.max(0.15, zoom / 2); renderMap(); });
@@ -756,6 +819,7 @@ function setSpeed(kmh){
   $('#g-val').textContent = v == null ? '--' : Math.round(v);
   const frac = v == null ? 0 : Math.min(1, v / 160);
   $('#g-arc').setAttribute('stroke-dasharray', `${(414.69 * frac).toFixed(1)} 552.92`);
+  $('#dv-speed').textContent = v == null ? '--' : Math.round(v);
 }
 function startGPS(){
   if (watchId != null) return;
@@ -775,6 +839,8 @@ function startGPS(){
     $('#s-head').textContent = (heading != null && !isNaN(heading)) ? DIRS[Math.round(heading / 45) % 8] : '--';
     $('#g-note').textContent = accuracy > 100 ? `定位精度较低（约 ${Math.round(accuracy)} 米）` : '';
     if (!loc){ loc = { lat, lon }; store.set('loc', loc); renderMap(); loadWeather(); }
+    else if (accuracy < 100){ loc = { lat, lon }; store.set('loc', loc); }
+    if (current === 'drive') renderDrive();
     store.set('trip', trip);
     renderTrip();
   }, err => {
@@ -790,10 +856,83 @@ function renderTrip(){
   const h = Math.floor(el / 3600), m = Math.floor(el % 3600 / 60);
   $('#s-time').textContent = h ? `${h}:${pad(m)}` : `${m}:${pad(el % 60)}`;
   $('#d-trip').textContent = trip.start ? `本次行程 ${km.toFixed(1)} km` : '';
+  $('#dv-dist').textContent = km.toFixed(1);
+  $('#dv-max').textContent = Math.round(trip.max);
 }
 $('#trip-reset').addEventListener('click', () => {
   trip = { dist:0, start: watchId != null ? Date.now() : null, max:0, last:null };
   store.set('trip', trip); renderTrip(); setSpeed(null);
+});
+
+/* ---------- 驾驶画面 ---------- */
+let dest = store.get('dest', '');
+let driveAt = null, driveT = 0;
+$('#dest-in').value = dest;
+function driveSrc(){
+  const here = `${loc.lat.toFixed(5)},${loc.lon.toFixed(5)}`;
+  return dest
+    ? `https://maps.google.com/maps?saddr=${here}&daddr=${encodeURIComponent(dest)}&hl=zh-CN&output=embed`
+    : `https://maps.google.com/maps?q=${here}&z=16&hl=zh-CN&output=embed`;
+}
+// 地图跟着车走：位置变化够大、且距上次刷新超过 15 秒才重新加载，避免一直闪
+function renderDrive(force){
+  const f = $('#drive-frame'), e = $('#drive-empty');
+  $('#dest-clear').hidden = !dest;
+  if (!loc || !navigator.onLine){
+    f.hidden = true; e.hidden = false;
+    e.innerHTML = `<div>${!navigator.onLine ? '<b>离线</b>地图需要联网（可用手机热点）' : `<b>尚未定位</b>${locMsg || '请允许定位'}<div style="margin-top:1rem"><button class="btn primary" data-locate>重新定位</button></div>`}</div>`;
+    return;
+  }
+  f.hidden = false; e.hidden = true;
+  const moved = driveAt ? hav(driveAt, loc) : Infinity;
+  if (force || !f.getAttribute('src') || (moved > (dest ? 600 : 200) && Date.now() - driveT > 15000)){
+    f.src = driveSrc(); driveAt = { ...loc }; driveT = Date.now();
+  }
+}
+$('#dest-form').addEventListener('submit', e => {
+  e.preventDefault();
+  dest = $('#dest-in').value.trim(); store.set('dest', dest);
+  $('#dest-in').blur(); renderDrive(true);
+});
+$('#dest-clear').addEventListener('click', () => { dest = ''; $('#dest-in').value = ''; store.set('dest', ''); renderDrive(true); });
+// 打开手机上的 App；没装时改开网页版
+function openApp(scheme, web){
+  let left = false;
+  const hide = () => { if (document.visibilityState === 'hidden') left = true; };
+  document.addEventListener('visibilitychange', hide);
+  location.href = scheme;
+  setTimeout(() => { document.removeEventListener('visibilitychange', hide); if (!left && web) location.href = web; }, 1800);
+}
+$('#go-gmaps').addEventListener('click', () => {
+  if (dest) openApp(`comgooglemaps://?daddr=${encodeURIComponent(dest)}&directionsmode=driving`,
+                    `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`);
+  else openApp('comgooglemaps://', 'https://www.google.com/maps');
+});
+$('#go-ne').addEventListener('click', () => openApp('orpheus://', 'https://music.163.com/'));
+
+/* 网易云外链播放器：支持歌单、单曲、专辑的分享链接 */
+const NE_TYPES = { playlist:0, album:1, song:2 };
+function parseNE(text){
+  const t = text.trim();
+  if (/^\d+$/.test(t)) return { type:0, id:t };
+  const m = t.match(/(playlist|album|song)(?:\/|\?id=|\?[^\s#]*?[?&]id=)(\d+)/);
+  return m ? { type: NE_TYPES[m[1]], id: m[2] } : null;
+}
+function renderNE(){
+  const src = `https://music.163.com/outchain/player?type=${S.ne.type}&id=${S.ne.id}&auto=0&height=66`;
+  const f = $('#ne-frame');
+  if (f.getAttribute('src') !== src) f.src = src;
+}
+$('#ne-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const v = $('#ne-in').value;
+  const r = parseNE(v);
+  if (!r){
+    $('#ne-note').textContent = /163cn\.tv/.test(v) ? '这是短链接，请先在浏览器里打开它，再复制地址栏里的完整链接' : '没认出链接，请粘贴 music.163.com 开头的歌单或歌曲链接';
+    return;
+  }
+  S.ne = r; saveS(); renderNE(); $('#ne-in').value = ''; $('#ne-in').blur();
+  $('#ne-note').textContent = `已保存（${['歌单','专辑','单曲'][r.type]} ${r.id}），在驾驶画面里播放`;
 });
 
 /* ---------- 秒表 ---------- */
@@ -833,6 +972,7 @@ function applySettings(){
   $('#set-theme').classList.toggle('on', S.theme === 'dark');
   $('#set-h24').classList.toggle('on', S.h24);
   $('#set-wake').classList.toggle('on', S.wake);
+  $('#set-start').classList.toggle('on', S.startDrive);
   $('#set-accent').innerHTML = ACCENTS.map(c => `<button data-c="${c}" class="${c === S.accent ? 'on' : ''}" style="background:${c}" aria-label="强调色"></button>`).join('');
   saveS(); tick(); applyWake();
 }
@@ -840,6 +980,7 @@ $('#set-dim').addEventListener('input', e => { S.dim = +e.target.value; applySet
 $('#set-theme').addEventListener('click', () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; applySettings(); });
 $('#set-h24').addEventListener('click', () => { S.h24 = !S.h24; applySettings(); });
 $('#set-wake').addEventListener('click', () => { S.wake = !S.wake; applySettings(); });
+$('#set-start').addEventListener('click', () => { S.startDrive = !S.startDrive; applySettings(); });
 $('#set-accent').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b){ S.accent = b.dataset.c; applySettings(); } });
 function toggleFS(){
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -872,6 +1013,7 @@ renderMap();
 renderTrip();
 if (loc) loadWeather();
 locate();
+if (S.startDrive) show('drive');
 })();
 </script>
 </body>
